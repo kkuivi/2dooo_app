@@ -1,18 +1,14 @@
-import React, { ReactNode } from "react";
+import React, { ReactNode, useCallback, useEffect } from "react";
 import { useState } from "react";
 import CreateItemDialog from "@/components/create_item_dialog";
-import TodoItem from "@/components/todo_item";
+import TodoItemCard from "@/components/todo_item";
 import EditItemDialog from "@/components/edit_item_dialog";
 import { Reorder } from "motion/react";
+import { createClient } from "@/utils/supabase/server";
+import TodoItem from "@/data/todo_item";
 
 // To do:
-// 5. Create a database that allows users to retrieve items from the database as well as add items to the database
-// 6. Connect frontend to the database
 // 7. Allow creating accounts
-
-type TodoItem = {
-    title: string;
-};
 
 export default function Home() {
     const [items, setItems] = useState<TodoItem[]>([]);
@@ -31,7 +27,16 @@ export default function Home() {
     };
 
     const handleAddItemFormSubmit = (formData: Record<string, string>) => {
-        setItems([...items, { title: formData.title }]);
+        setItems([
+            ...items,
+            {
+                title: formData.title,
+                id: null,
+                done: null,
+                created_at: null,
+            },
+        ]);
+        addNewToDoItemToDB(formData.title);
     };
 
     const handleEditItemFormSubmit = (
@@ -50,6 +55,8 @@ export default function Home() {
     const onMarkAsDone = (index: number) => {
         const newArray = items.filter((_, i) => i !== index);
         setItems(newArray);
+
+        markItemAsDoneInDB(items[index]).catch(console.error);
     };
 
     const onEdit = (index: number) => {
@@ -61,7 +68,76 @@ export default function Home() {
     const onDelete = (index: number) => {
         const newArray = items.filter((_, i) => i !== index);
         setItems(newArray);
+
+        deleteItemFromDB(items[index]).catch(console.error);
     };
+
+    const addNewToDoItemToDB = async (title: string) => {
+        const supabase = await createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        const result = await supabase
+            .from("ToDoItems")
+            .insert({ title: title });
+    };
+
+    const getToDoItemsFromDB = useCallback(async () => {
+        const supabase = await createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        const { data } = await supabase
+            .from("ToDoItems")
+            .select()
+            .eq("done", false);
+        console.log(data);
+
+        if (data) {
+            const todoItems: TodoItem[] = [];
+            data.map((item) => {
+                todoItems.push({
+                    title: item.title,
+                    id: item.id,
+                    done: item.done,
+                    created_at: item.created_at,
+                });
+            });
+
+            setItems(todoItems);
+        }
+    }, []);
+
+    const markItemAsDoneInDB = async (todoItem: TodoItem) => {
+        const supabase = await createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        const data = await supabase
+            .from("ToDoItems")
+            .update({ done: true })
+            .eq("id", todoItem.id);
+    };
+
+    const deleteItemFromDB = async (todoItem: TodoItem) => {
+        const supabase = await createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        console.log(todoItem);
+        const response = await supabase
+            .from("ToDoItems")
+            .delete()
+            .eq("id", todoItem.id);
+    };
+
+    useEffect(() => {
+        getToDoItemsFromDB().catch(console.error);
+    }, [getToDoItemsFromDB]);
 
     return (
         <>
@@ -76,7 +152,7 @@ export default function Home() {
                 {items.map((item, index) => {
                     return (
                         <Reorder.Item axis="y" value={item} key={index}>
-                            <TodoItem
+                            <TodoItemCard
                                 index={index}
                                 title={item.title}
                                 onMarkAsDone={() => onMarkAsDone(index)}

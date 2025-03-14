@@ -1,6 +1,6 @@
 import React, { ReactNode } from "react";
 
-interface TodoItemProps {
+export interface TodoItemCardProps {
     index: number;
     title: string;
     onMarkAsDone: (index: number) => void;
@@ -8,7 +8,7 @@ interface TodoItemProps {
     onDelete: (index: number) => void;
 }
 
-const TodoItem: React.FC<TodoItemProps> = ({
+const TodoItemCard: React.FC<TodoItemCardProps> = ({
     index,
     title,
     onMarkAsDone,
@@ -49,4 +49,4 @@ const TodoItem: React.FC<TodoItemProps> = ({
     );
 };
 
-export default TodoItem;
+export default TodoItemCard;
